@@ -105,8 +105,8 @@ class MainWindow(QMainWindow):
         self.serialTimer = QTimer() # timer for triggering the __readSerial slot
         self.serialTimer.timeout.connect(self.__readSerial)
 
-        self.sendButton.clicked.connect(self.__writeSerial)
-        self.lineEdit.returnPressed.connect(self.__writeSerial)
+        self.sendButton.clicked.connect(self.__transmitLineEdit)
+        self.lineEdit.returnPressed.connect(self.__transmitLineEdit)
 
 
     def __showSerialWindow(self) -> None:
@@ -165,13 +165,10 @@ class MainWindow(QMainWindow):
             self.logTextEdit.verticalScrollBar().setValue(self.logTextEdit.verticalScrollBar().maximum())
 
 
-    def __writeSerial(self):
+    def __transmitLineEdit(self):
         '''
         Write data to a serial port from the bottom QLineEdit
-        '''
-        if not self.serialPort.isOpen():
-            return
-        
+        '''      
         data = self.lineEdit.text()
         if data == '':
             return
@@ -180,17 +177,27 @@ class MainWindow(QMainWindow):
             try:
                 data = ''.join(data.split())
                 data = bytes([ int(data[i:i+2], 16) for i in range(0, len(data), 2) ])
-                if self.serialPort.writeData(data) > 0:
+                if self.writeSerial(data) > 0:
                     separator = bytes((0x2d,)) # 0x2d = '-'
                     self.__writeLog('transmitted', str(data.hex(separator)))
             except ValueError:
                 self.__writeLog('transmitted', 'invalid data to send')
         else:
-            if self.serialPort.writeData(data.encode('latin-1')) > 0:
+            if self.writeSerial(data.encode('latin-1')) > 0:
                 self.__writeLog('transmitted', data)
 
         self.lineEdit.clear()
-    
+
+
+    def writeSerial(self, data: bytes) -> int:
+        if not self.serialPort.isOpen():
+            return 0
+        
+        if not isinstance(data, bytes):
+            return 0
+        
+        return self.serialPort.writeData(data)
+
 
     def __writeLog(self, type: str, text: str) -> None:
         '''
